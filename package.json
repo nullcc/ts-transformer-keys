@@ -1,10 +1,11 @@
 {
   "name": "ts-transformer-keys",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "A TypeScript custom transformer which enables to obtain keys of given type.",
   "main": "index.js",
   "scripts": {
-    "test": "tsc && node test/compile && mocha test"
+    "test": "tsc && node test/compile && mocha test",
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
