@@ -20,9 +20,28 @@ function visitNode(node: ts.Node, program: ts.Program): ts.Node {
     return ts.createArrayLiteral([]);
   }
   const type = typeChecker.getTypeFromTypeNode(node.typeArguments[0]);
+  let nestedProperties: any[] = [];
   const properties = typeChecker.getPropertiesOfType(type);
-  return ts.createArrayLiteral(properties.map(property => ts.createLiteral(property.name)));
+  properties.forEach(property => {
+    nestedProperties = [...nestedProperties, ...getNestedProperties(property, [])];
+  });
+
+  return ts.createArrayLiteral(nestedProperties.map(property => ts.createLiteral(property)));
 }
+
+const getNestedProperties = (obj: any, properties: string[]) => {
+  let nestedProperties: string[] = [];
+  let tempProperties = JSON.parse(JSON.stringify(properties));
+  const property = obj.escapedName;
+  tempProperties.push(property);
+  nestedProperties.push(tempProperties.join('.'));
+  if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.members) {
+    obj.valueDeclaration.symbol.valueDeclaration.type.members.forEach((member: any) => {
+      nestedProperties = nestedProperties.concat(getNestedProperties(member.symbol, tempProperties));
+    });
+  }
+  return nestedProperties;
+};
 
 const indexTs = path.join(__dirname, 'index.ts');
 function isKeysCallExpression(node: ts.Node, typeChecker: ts.TypeChecker): node is ts.CallExpression {

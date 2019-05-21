@@ -25,6 +25,17 @@ describe('keys', () => {
     assert.deepStrictEqual(keys<FooBar | BarBaz>(), ['bar']);
     assert.deepStrictEqual(keys<FooBar & any>(), []);
     assert.deepStrictEqual(keys<FooBar | any>(), []);
+    interface Nested {
+      foo: {
+        a: Function;
+        b: string;
+        c: {
+          d: number;
+        }
+      }
+      bar: Date;
+    }
+    assert.deepStrictEqual(keys<Nested>(), [ 'foo', 'foo.a', 'foo.b', 'foo.c', 'foo.c.d', 'bar' ]);
   });
   const fileTransformationDir = path.join(__dirname, 'fileTransformation');
   fs.readdirSync(fileTransformationDir).filter((file) => path.extname(file) === '.ts').forEach((file) =>
