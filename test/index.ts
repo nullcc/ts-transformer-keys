@@ -72,6 +72,20 @@ describe('keys', () => {
       'e',
       'e.z1',
       'e.z2' ]);
+
+    interface A {
+      a: string;
+      b: B;
+    }
+    interface B {
+      x: string;
+      y: string;
+    }
+    interface C extends A {
+      u: string;
+      v: string;
+    }
+    assert.deepStrictEqual(keys<C>(), [ 'u', 'v', 'a', 'b', 'b.x', 'b.y' ]);
   });
   const fileTransformationDir = path.join(__dirname, 'fileTransformation');
   fs.readdirSync(fileTransformationDir).filter((file) => path.extname(file) === '.ts').forEach((file) =>
