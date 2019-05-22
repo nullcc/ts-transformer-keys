@@ -25,7 +25,6 @@ function visitNode(node: ts.Node, program: ts.Program): ts.Node {
   properties.forEach(property => {
     nestedProperties = [...nestedProperties, ...getNestedProperties(property, [])];
   });
-
   return ts.createArrayLiteral(nestedProperties.map(property => ts.createLiteral(property)));
 }
 
@@ -38,6 +37,10 @@ const getNestedProperties = (obj: any, properties: string[]) => {
   if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.members) {
     obj.valueDeclaration.symbol.valueDeclaration.type.members.forEach((member: any) => {
       nestedProperties = nestedProperties.concat(getNestedProperties(member.symbol, tempProperties));
+    });
+  } else if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.typeName && obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals.get(obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText)) {
+    obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals.get(obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText).members.forEach((member: any) => {
+      nestedProperties = nestedProperties.concat(getNestedProperties(member, tempProperties));
     });
   }
   return nestedProperties;

@@ -3,6 +3,7 @@ import * as assert from 'assert';
 import * as path from 'path';
 import * as fs from 'fs';
 import { compile } from './compile/compile';
+import {interfaces} from "mocha";
 
 describe('keys', () => {
   it('return keys of given type', () => {
@@ -36,6 +37,41 @@ describe('keys', () => {
       bar: Date;
     }
     assert.deepStrictEqual(keys<Nested>(), [ 'foo', 'foo.a', 'foo.b', 'foo.c', 'foo.c.d', 'bar' ]);
+    interface X {
+      a: number;
+      b: {
+        c: number;
+        d: Y;
+      };
+      e: Z
+    }
+    interface Y {
+      y1: number;
+      y2: W;
+    }
+    interface Z {
+      z1: number;
+      z2: string;
+    }
+    interface W {
+      w1: number;
+      w2: string;
+      w3: Function;
+      w4: Date;
+    }
+    assert.deepStrictEqual(keys<X>(), [ 'a',
+      'b',
+      'b.c',
+      'b.d',
+      'b.d.y1',
+      'b.d.y2',
+      'b.d.y2.w1',
+      'b.d.y2.w2',
+      "b.d.y2.w3",
+      "b.d.y2.w4",
+      'e',
+      'e.z1',
+      'e.z2' ]);
   });
   const fileTransformationDir = path.join(__dirname, 'fileTransformation');
   fs.readdirSync(fileTransformationDir).filter((file) => path.extname(file) === '.ts').forEach((file) =>
