@@ -3,7 +3,8 @@ import * as assert from 'assert';
 import * as path from 'path';
 import * as fs from 'fs';
 import { compile } from './compile/compile';
-import {interfaces} from "mocha";
+import { XXX } from './dto';
+
 
 describe('keys', () => {
   it('return keys of given type', () => {
@@ -59,7 +60,8 @@ describe('keys', () => {
       w3: Function;
       w4: Date;
     }
-    assert.deepStrictEqual(keys<X>(), [ 'a',
+    assert.deepStrictEqual(keys<X>(), [
+      'a',
       'b',
       'b.c',
       'b.d',
@@ -86,6 +88,8 @@ describe('keys', () => {
       v: string;
     }
     assert.deepStrictEqual(keys<C>(), [ 'u', 'v', 'a', 'b', 'b.x', 'b.y' ]);
+    assert.deepStrictEqual(keys<XXX>(), [ 'a', 'b', 'b.y' ]);
+
   });
   const fileTransformationDir = path.join(__dirname, 'fileTransformation');
   fs.readdirSync(fileTransformationDir).filter((file) => path.extname(file) === '.ts').forEach((file) =>

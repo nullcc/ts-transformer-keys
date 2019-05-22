@@ -11,7 +11,18 @@ function visitNodeAndChildren(node: ts.Node, program: ts.Program, context: ts.Tr
   return ts.visitEachChild(visitNode(node, program), childNode => visitNodeAndChildren(childNode, program, context), context);
 }
 
+let locals = {};
+
+const xah_map_to_obj = ((aMap: any) => {
+  const obj = {};
+  aMap.forEach ((v: any, k: any) => { obj[k] = v });
+  return obj;
+});
+
 function visitNode(node: ts.Node, program: ts.Program): ts.Node {
+  if (node.kind === ts.SyntaxKind.SourceFile) {
+    locals = { ...locals, ...xah_map_to_obj(node['locals']) };
+  }
   const typeChecker = program.getTypeChecker();
   if (!isKeysCallExpression(node, typeChecker)) {
     return node;
@@ -23,12 +34,12 @@ function visitNode(node: ts.Node, program: ts.Program): ts.Node {
   let nestedProperties: any[] = [];
   const properties = typeChecker.getPropertiesOfType(type);
   properties.forEach(property => {
-    nestedProperties = [...nestedProperties, ...getNestedProperties(property, [])];
+    nestedProperties = [...nestedProperties, ...getNestedProperties(property, [], locals)];
   });
   return ts.createArrayLiteral(nestedProperties.map(property => ts.createLiteral(property)));
 }
 
-const getNestedProperties = (obj: any, properties: string[]) => {
+const getNestedProperties = (obj: any, properties: string[], locals: any) => {
   let nestedProperties: string[] = [];
   let tempProperties = JSON.parse(JSON.stringify(properties));
   const property = obj.escapedName;
@@ -36,12 +47,18 @@ const getNestedProperties = (obj: any, properties: string[]) => {
   nestedProperties.push(tempProperties.join('.'));
   if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.members) {
     obj.valueDeclaration.symbol.valueDeclaration.type.members.forEach((member: any) => {
-      nestedProperties = nestedProperties.concat(getNestedProperties(member.symbol, tempProperties));
+      nestedProperties = nestedProperties.concat(getNestedProperties(member.symbol, tempProperties, locals));
     });
-  } else if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.typeName && obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals.get(obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText)) {
-    obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals.get(obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText).members.forEach((member: any) => {
-      nestedProperties = nestedProperties.concat(getNestedProperties(member, tempProperties));
-    });
+  } else if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.typeName) {
+    let tempLocals = { ...locals };
+    if (obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container) {
+      tempLocals = { ...tempLocals, ...xah_map_to_obj(obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals)};
+    }
+    if (tempLocals[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText]) {
+      tempLocals[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText].members.forEach((member: any) => {
+        nestedProperties = nestedProperties.concat(getNestedProperties(member, tempProperties, tempLocals));
+      });
+    }
   }
   return nestedProperties;
 };
