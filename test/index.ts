@@ -3,7 +3,7 @@ import * as assert from 'assert';
 import * as path from 'path';
 import * as fs from 'fs';
 import { compile } from './compile/compile';
-import { XXX } from './dto';
+import { XXX } from './interface';
 
 
 describe('keys', () => {
