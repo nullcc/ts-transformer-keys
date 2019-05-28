@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { compile } from './compile/compile';
 import { XXX } from './interface1';
 import { ZZZ } from './interface2';
+import { RRR } from './interfaces3';
 
 
 describe('keys', () => {
@@ -97,11 +98,21 @@ describe('keys', () => {
 
     assert.deepStrictEqual(keys<XXX>(), [ 'a', 'b', 'b.y' ]);
     assert.deepStrictEqual(keys<ZZZ>(), [ 'a', 'b', 'b.y', 'b.w', 'c' ]);
+    assert.deepStrictEqual(keys<RRR>(), [
+      'ttt',
+      'ttt.b',
+      'ttt.c',
+      'ttt.vv',
+      'ttt.vv.e',
+      'ttt.vv.f',
+      'ttt.d',
+      'a'
+    ]);
   });
   const fileTransformationDir = path.join(__dirname, 'fileTransformation');
   fs.readdirSync(fileTransformationDir).filter((file) => path.extname(file) === '.ts').forEach((file) =>
     it(`transforms ${file} as expected`, () => {
-      let result = '';
+      let result = '';``
       const fullFileName = path.join(fileTransformationDir, file), postCompileFullFileName = fullFileName.replace(/\.ts$/, '.js');
       compile([fullFileName], (fileName, data) => postCompileFullFileName === path.join(fileName) && (result = data));
       assert.strictEqual(result.replace(/\r\n/g, '\n'), fs.readFileSync(postCompileFullFileName, 'utf-8'));

@@ -63,7 +63,7 @@ const getNestedProperties = (obj: any, properties: string[], locals: any) => {
     }
     if (sourceFileLocal && sourceFileLocal[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText]) {
       sourceFileLocal[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText].members.forEach((member: any) => {
-        nestedProperties = nestedProperties.concat(getNestedProperties(member, tempProperties, tempLocals));
+        nestedProperties = nestedProperties.concat(getNestedProperties(member, tempProperties, sourceFileLocal));
       });
     }
   }
