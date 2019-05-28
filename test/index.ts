@@ -3,7 +3,8 @@ import * as assert from 'assert';
 import * as path from 'path';
 import * as fs from 'fs';
 import { compile } from './compile/compile';
-import { XXX } from './interface';
+import { XXX } from './interface1';
+import { ZZZ } from './interface2';
 
 
 describe('keys', () => {
@@ -95,7 +96,7 @@ describe('keys', () => {
     assert.deepStrictEqual(keys<C>(), [ 'u', 'v', 'a', 'b', 'b.x', 'b.y' ]);
 
     assert.deepStrictEqual(keys<XXX>(), [ 'a', 'b', 'b.y' ]);
-
+    assert.deepStrictEqual(keys<ZZZ>(), [ 'a', 'b', 'b.y', 'b.w', 'c' ]);
   });
   const fileTransformationDir = path.join(__dirname, 'fileTransformation');
   fs.readdirSync(fileTransformationDir).filter((file) => path.extname(file) === '.ts').forEach((file) =>

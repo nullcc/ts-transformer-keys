@@ -13,7 +13,7 @@ function visitNodeAndChildren(node: ts.Node, program: ts.Program, context: ts.Tr
 
 let locals = {};
 
-const xah_map_to_obj = ((aMap: any) => {
+const mapToObj = ((aMap: any) => {
   const obj = {};
   aMap.forEach ((v: any, k: any) => { obj[k] = v });
   return obj;
@@ -21,7 +21,8 @@ const xah_map_to_obj = ((aMap: any) => {
 
 function visitNode(node: ts.Node, program: ts.Program): ts.Node {
   if (node.kind === ts.SyntaxKind.SourceFile) {
-    locals = { ...locals, ...xah_map_to_obj(node['locals']) };
+    const path = node['path'];
+    locals = { ...locals, [path]: mapToObj(node['locals']) };
   }
   const typeChecker = program.getTypeChecker();
   if (!isKeysCallExpression(node, typeChecker)) {
@@ -52,15 +53,32 @@ const getNestedProperties = (obj: any, properties: string[], locals: any) => {
   } else if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.typeName) {
     let tempLocals = { ...locals };
     if (obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container) {
-      tempLocals = { ...tempLocals, ...xah_map_to_obj(obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals)};
+      tempLocals = {...tempLocals, ...mapToObj(obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals)};
     }
-    if (tempLocals[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText]) {
-      tempLocals[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText].members.forEach((member: any) => {
+
+    const sourceFileName = getSourceFileNameOfObj(obj);
+    let sourceFileLocal = tempLocals;
+    if (sourceFileName) {
+      sourceFileLocal = tempLocals[sourceFileName.toLowerCase()];
+    }
+    if (sourceFileLocal && sourceFileLocal[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText]) {
+      sourceFileLocal[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText].members.forEach((member: any) => {
         nestedProperties = nestedProperties.concat(getNestedProperties(member, tempProperties, tempLocals));
       });
     }
   }
   return nestedProperties;
+};
+
+const getSourceFileNameOfObj = (obj: any): any => {
+  if (!obj) {
+    return null;
+  }
+  const objParent = obj.parent;
+  if (objParent && objParent.valueDeclaration) {
+    return objParent.valueDeclaration.fileName;
+  }
+  return getSourceFileNameOfObj(objParent);
 };
 
 const indexTs = path.join(__dirname, 'index.ts');
