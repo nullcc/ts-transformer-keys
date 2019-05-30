@@ -11,18 +11,19 @@ function visitNodeAndChildren(node: ts.Node, program: ts.Program, context: ts.Tr
   return ts.visitEachChild(visitNode(node, program), childNode => visitNodeAndChildren(childNode, program, context), context);
 }
 
-let locals = {};
+let symbolMap = {};
 
-const mapToObj = ((aMap: any) => {
+const convertMapToObj = (aMap: any) => {
   const obj = {};
-  aMap.forEach ((v: any, k: any) => { obj[k] = v });
+  aMap.forEach((v: any, k: any) => { obj[k] = v });
   return obj;
-});
+};
 
 function visitNode(node: ts.Node, program: ts.Program): ts.Node {
   if (node.kind === ts.SyntaxKind.SourceFile) {
     const path = node['path'];
-    locals = { ...locals, [path]: mapToObj(node['locals']) };
+    // use source file path to create a namespace for symbols
+    symbolMap = { ...symbolMap, [path]: convertMapToObj(node['locals']) };
   }
   const typeChecker = program.getTypeChecker();
   if (!isKeysCallExpression(node, typeChecker)) {
@@ -32,45 +33,74 @@ function visitNode(node: ts.Node, program: ts.Program): ts.Node {
     return ts.createArrayLiteral([]);
   }
   const type = typeChecker.getTypeFromTypeNode(node.typeArguments[0]);
-  let nestedProperties: any[] = [];
-  const properties = typeChecker.getPropertiesOfType(type);
-  properties.forEach(property => {
-    nestedProperties = [...nestedProperties, ...getNestedProperties(property, [], locals)];
+  let properties: any[] = [];
+  const symbols = typeChecker.getPropertiesOfType(type);
+  symbols.forEach(symbol => {
+    properties = [ ...properties, ...getPropertiesOfSymbol(symbol, [], symbolMap) ];
   });
-  return ts.createArrayLiteral(nestedProperties.map(property => ts.createLiteral(property)));
+  return ts.createArrayLiteral(properties.map(property => ts.createLiteral(property)));
 }
 
-const getNestedProperties = (obj: any, properties: string[], locals: any) => {
-  let nestedProperties: string[] = [];
-  let tempProperties = JSON.parse(JSON.stringify(properties));
-  const property = obj.escapedName;
-  tempProperties.push(property);
-  nestedProperties.push(tempProperties.join('.'));
-  if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.members) {
-    obj.valueDeclaration.symbol.valueDeclaration.type.members.forEach((member: any) => {
-      nestedProperties = nestedProperties.concat(getNestedProperties(member.symbol, tempProperties, locals));
-    });
-  } else if (obj.valueDeclaration && obj.valueDeclaration.symbol.valueDeclaration.type.typeName) {
-    let tempLocals = { ...locals };
-    if (obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container) {
-      tempLocals = {...tempLocals, ...mapToObj(obj.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals)};
-    }
+const getPropertiesOfSymbol = (symbol: any, outerLayerProperties: string[], symbolMap: any): string[] => {
+  let properties: string[] = [];
+  let propertyPathElements = JSON.parse(JSON.stringify(outerLayerProperties));
+  const property = symbol.escapedName; // current symbol name
+  propertyPathElements.push(property);
+  properties.push(propertyPathElements.join('.'));
 
-    const sourceFileName = getSourceFileNameOfObj(obj);
-    let sourceFileLocal = tempLocals;
+  if (isOutermostLayerSymbol(symbol)) {
+    const outermostLayerPropertiesOfSymbol = getOutermostLayerPropertiesOfSymbol(symbol, propertyPathElements, symbolMap);
+    properties = properties.concat(outermostLayerPropertiesOfSymbol);
+  } else if (isInnerLayerSymbol(symbol)) {
+    let internalSymbolMap = {};
+    if (symbol.valueDeclaration.symbol.valueDeclaration.name.flowNode.container) {
+      internalSymbolMap = {
+        ...internalSymbolMap,
+        ...convertMapToObj(symbol.valueDeclaration.symbol.valueDeclaration.name.flowNode.container.locals),
+      };
+    } else {
+      internalSymbolMap = symbolMap;
+    }
+    const sourceFileName = getSourceFileNameOfSymbol(symbol);
+    let sourceFileSymbolMap = {};
     if (sourceFileName) {
-      sourceFileLocal = tempLocals[sourceFileName.toLowerCase()];
+      sourceFileSymbolMap = internalSymbolMap[sourceFileName.toLowerCase()];
+    } else {
+      sourceFileSymbolMap = internalSymbolMap;
     }
-    if (sourceFileLocal && sourceFileLocal[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText]) {
-      sourceFileLocal[obj.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText].members.forEach((member: any) => {
-        nestedProperties = nestedProperties.concat(getNestedProperties(member, tempProperties, sourceFileLocal));
-      });
-    }
+    const innerLayerPropertiesOfSymbol = getInnerLayerPropertiesOfSymbol(symbol, propertyPathElements, sourceFileSymbolMap);
+    properties = properties.concat(innerLayerPropertiesOfSymbol);
   }
-  return nestedProperties;
+  return properties;
 };
 
-const getSourceFileNameOfObj = (obj: any): any => {
+const isOutermostLayerSymbol = (symbol: any): boolean => {
+  return symbol.valueDeclaration && symbol.valueDeclaration.symbol.valueDeclaration.type.members;
+};
+
+const getOutermostLayerPropertiesOfSymbol = (symbol: any, propertyPathElements: string[], symbolMap: any): string[] => {
+  let properties: string[] = [];
+  symbol.valueDeclaration.symbol.valueDeclaration.type.members.forEach((member: any) => {
+    properties = properties.concat(getPropertiesOfSymbol(member.symbol, propertyPathElements, symbolMap));
+  });
+  return properties;
+};
+
+const getInnerLayerPropertiesOfSymbol = (symbol: any, propertyPathElements: string[], symbolMap: any): string[] => {
+  let properties: string[] = [];
+  if (symbolMap && symbolMap[symbol.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText]) {
+    symbolMap[symbol.valueDeclaration.symbol.valueDeclaration.type.typeName.escapedText].members.forEach((member: any) => {
+      properties = properties.concat(getPropertiesOfSymbol(member, propertyPathElements, symbolMap));
+    });
+  }
+  return properties;
+};
+
+const isInnerLayerSymbol = (symbol: any): boolean => {
+  return symbol.valueDeclaration && symbol.valueDeclaration.symbol.valueDeclaration.type.typeName;
+};
+
+const getSourceFileNameOfSymbol = (obj: any): any => {
   if (!obj) {
     return null;
   }
@@ -78,7 +108,7 @@ const getSourceFileNameOfObj = (obj: any): any => {
   if (objParent && objParent.valueDeclaration) {
     return objParent.valueDeclaration.fileName;
   }
-  return getSourceFileNameOfObj(objParent);
+  return getSourceFileNameOfSymbol(objParent);
 };
 
 const indexTs = path.join(__dirname, 'index.ts');

@@ -6,7 +6,7 @@ export function compile(filePaths: string[], writeFileCallback?: ts.WriteFileCal
     strict: true,
     noEmitOnError: true,
     suppressImplicitAnyIndexErrors: true,
-    target: ts.ScriptTarget.ES5
+    target: ts.ScriptTarget.ES5,
   });
   const transformers: ts.CustomTransformers = {
     before: [transformer(program)],

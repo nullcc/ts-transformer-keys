@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import { compile } from './compile/compile';
 import { XXX } from './interface1';
 import { ZZZ } from './interface2';
-import { RRR } from './interfaces3';
+import { RRR } from './interface3';
 
 
 describe('keys', () => {
@@ -112,7 +112,7 @@ describe('keys', () => {
   const fileTransformationDir = path.join(__dirname, 'fileTransformation');
   fs.readdirSync(fileTransformationDir).filter((file) => path.extname(file) === '.ts').forEach((file) =>
     it(`transforms ${file} as expected`, () => {
-      let result = '';``
+      let result = '';
       const fullFileName = path.join(fileTransformationDir, file), postCompileFullFileName = fullFileName.replace(/\.ts$/, '.js');
       compile([fullFileName], (fileName, data) => postCompileFullFileName === path.join(fileName) && (result = data));
       assert.strictEqual(result.replace(/\r\n/g, '\n'), fs.readFileSync(postCompileFullFileName, 'utf-8'));
